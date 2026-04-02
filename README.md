@@ -1,70 +1,118 @@
-# Getting Started with Create React App
+# React Render Tracker
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Проект для демонстрации и сравнения производительности рендеринга компонентов при использовании двух подходов к управлению состоянием: Context API и Zustand.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Цель проекта
 
-### `npm start`
+Проект наглядно показывает разницу в количестве повторных рендеров при изменении состояния. Context API при любом изменении вызывает перерендер всех компонентов, подписанных на контекст, тогда как Zustand позволяет каждому компоненту подписываться только на нужный срез состояния, минимизируя лишние рендеры.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Структура проекта
 
-### `npm test`
+```
+src/
+  components/          # Переиспользуемые UI-компоненты
+    Counter.jsx
+    IncreaseCounterButton.jsx
+    User.jsx
+    LogInOutButtons.jsx
+    SearchInput.jsx
+    Title.jsx
+    ChildComp.jsx
+    SiblingComp.jsx
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+  performance/         # Инструменты отслеживания рендеров
+    renderCount.js
+    useStoreRenderCount.js
+    RenderingTrackingTable.jsx
+    Tracker.jsx
+    Tracker.css
 
-### `npm run build`
+  styles/
+    border.js
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+  modules/
+    context/           # Пример с Context API
+      Store/index.js
+      index.jsx
+    zustand/           # Пример с Zustand
+      Store/index.js
+      index.jsx
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Как работает трекер рендеров
 
-### `npm run eject`
+### renderCount.js
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Модуль хранит глобальный объект `storedRenderCounts`, где для каждого компонента фиксируются два счётчика:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- `triggered` — сколько раз начался рендер компонента
+- `finished` — сколько раз рендер завершился (фиксируется через `useEffect`)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Функция `resetLogs` обнуляет все счётчики.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### useStoreRenderCount(module, componentName)
 
-## Learn More
+Хук, который вызывается внутри каждого отслеживаемого компонента. При каждом рендере увеличивает `triggered`, а после завершения рендера (через `useEffect` без зависимостей) увеличивает `finished`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Tracker и RenderingTrackingTable
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+`Tracker` — фиксированная панель в правом нижнем углу экрана. При нажатии на кнопку "Open Tracker" открывается таблица `RenderingTrackingTable`, которая обновляется каждые 100 мс и отображает актуальные счётчики по всем модулям и компонентам. Кнопка "Reset" обнуляет все счётчики.
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Пример с Context API
 
-### Analyzing the Bundle Size
+Хранилище реализовано на `createContext` и `useState`. Все три значения (`count`, `user`, `title`) и их сеттеры передаются через единый объект `value` в провайдере.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Компонент `AppContent` подписывается на весь контекст целиком через `useAppContext`. Это означает, что любое изменение любого значения в состоянии вызывает перерендер `AppContent` и всех его дочерних компонентов, даже если они не используют изменившееся значение.
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Пример с Zustand
 
-### Advanced Configuration
+Хранилище создано через `create` из библиотеки Zustand. Те же три значения и экшены хранятся в одном сторе.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+В отличие от контекстного примера, логика разбита на три отдельных секции: `CounterSection`, `UserSection`, `SearchSection`. Каждая секция подписывается только на нужные ей поля через селекторы. При изменении `count` перерендерятся только `CounterSection` и связанные с ней компоненты, а `UserSection` и `SearchSection` останутся нетронутыми.
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Сравнение подходов
 
-### `npm run build` fails to minify
+| Критерий | Context API | Zustand |
+|---|---|---|
+| Перерендер при изменении одного поля | Все подписчики контекста | Только подписчики этого поля |
+| Гранулярность подписки | Весь объект контекста | Отдельные поля через селекторы |
+| Сложность настройки | Минимальная | Минимальная |
+| Внешние зависимости | Нет | zustand |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+## Запуск проекта
+
+Установите зависимости и запустите dev-сервер.
+
+```bash
+npm install
+npm run build
+npx serve build
+```
+После смены подхода необходимо снова пересобрать проект с использованием:
+
+```bash
+npm run build
+npx serve build
+```
+После запуска откройте приложение в браузере, нажмите "Open Tracker" и понажимайте кнопки в обоих примерах. Сравните, сколько рендеров происходит в каждом случае.
+
+---
+
+## Зависимости
+
+- React 18+
+- Zustand
